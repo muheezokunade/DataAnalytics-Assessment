@@ -1,72 +1,78 @@
 USE adashi_staging;
 
--- Question 4: Customer Lifetime Value (CLV) Estimation
+-- Question 4: Customer Lifetime Value (CLV) Estimation (OPTIMIZED)
 -- Calculate CLV based on account tenure and transaction volume
 
 -- APPROACH:
--- 1. First CTE: Calculate customer tenure in months
--- 2. Second CTE: Aggregate transaction data (count and amount)
--- 3. Third CTE: Combine tenure and transaction data to calculate CLV
--- 4. Final query: Present CLV data sorted by highest value first
+-- 1. Pre-filter active customers first to reduce data volume
+-- 2. Pre-filter successful transactions for efficiency
+-- 3. Simplify CLV calculation and handle edge cases
+-- 4. Use appropriate indexes for joins
+-- 5. Limit results for better performance
+
+-- Define constants for CLV calculation
+SET @profit_margin = 0.025; -- 2.5% profit margin
+SET @projection_months = 60; -- 5-year (60-month) customer lifespan projection
 
 -- First CTE: Calculate customer tenure in months from registration date to present
 WITH CustomerTenure AS (
     SELECT 
-        u.id as customer_id,
-        u.name,
-        TIMESTAMPDIFF(MONTH, u.date_joined, CURRENT_DATE()) as tenure_months  -- Calculate months since joining
+        id as customer_id,
+        CONCAT(first_name, ' ', last_name) as customer_name,
+        TIMESTAMPDIFF(MONTH, date_joined, CURRENT_DATE()) as tenure_months
     FROM 
-        users_customuser u
+        users_customuser
     WHERE 
-        u.is_active = 1  -- Only consider active customers
+        is_active = 1
+        AND date_joined IS NOT NULL
 ),
 
 -- Second CTE: Calculate transaction metrics for each customer
 CustomerTransactions AS (
     SELECT 
-        s.owner_id,
-        COUNT(*) as total_transactions,  -- Total number of transactions
-        SUM(s.confirmed_amount) as total_transaction_amount  -- Total transaction amount (in kobo)
+        owner_id,
+        COUNT(*) as total_transactions,
+        SUM(confirmed_amount) as total_transaction_amount
     FROM 
-        savings_savingsaccount s
+        savings_savingsaccount
     WHERE 
-        s.transaction_status = 'success'  -- Only count successful transactions
+        transaction_status = 'success'
+        AND confirmed_amount > 0
     GROUP BY 
-        s.owner_id
+        owner_id
 ),
 
 -- Third CTE: Combine tenure and transaction data to calculate CLV
 CustomerCLV AS (
     SELECT 
         ct.customer_id,
-        ct.name,
+        ct.customer_name,
         ct.tenure_months,
         COALESCE(tr.total_transactions, 0) as total_transactions,
-        -- Profit per transaction is estimated at 2.5% of transaction amount
-        (COALESCE(tr.total_transaction_amount, 0) * 0.025) / 100 as transaction_profit_naira,  -- Convert kobo to Naira
-        -- CLV formula: (Average Monthly Profit) * (Average Customer Lifespan)
-        -- Using (transaction_profit / tenure_months) * 60 as CLV with 5-year (60-month) horizon
+        (COALESCE(tr.total_transaction_amount, 0) * @profit_margin) / 100 as transaction_profit_naira,
         CASE
             WHEN ct.tenure_months > 0 THEN 
-                ((COALESCE(tr.total_transaction_amount, 0) * 0.025) / 100) / ct.tenure_months * 60
+                ((COALESCE(tr.total_transaction_amount, 0) * @profit_margin) / 100) / ct.tenure_months * @projection_months
             ELSE 0
         END as estimated_clv
     FROM 
         CustomerTenure ct
-    LEFT JOIN 
-        CustomerTransactions tr ON ct.customer_id = tr.owner_id  -- Join to include customers with no transactions
+    INNER JOIN 
+        CustomerTransactions tr ON ct.customer_id = tr.owner_id
 )
 
 -- Final query: Present CLV data sorted by highest value first
 SELECT 
     customer_id,
-    name,
+    customer_name,
     tenure_months,
     total_transactions,
-    ROUND(estimated_clv, 2) as estimated_clv  -- Round CLV to 2 decimal places
+    ROUND(estimated_clv, 2) as estimated_clv
 FROM 
     CustomerCLV
 WHERE 
-    total_transactions > 0  -- Only include customers with at least one transaction
+    total_transactions > 0
+    AND estimated_clv > 0
 ORDER BY 
-    estimated_clv DESC;  -- Sort by highest CLV first 
+    estimated_clv DESC
+LIMIT 1000; 

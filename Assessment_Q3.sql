@@ -1,44 +1,51 @@
 USE adashi_staging;
--- Question 3: Account Inactivity Alert
+-- Question 3: Account Inactivity Alert (OPTIMIZED)
 -- Find active accounts with no transactions in the last 1 year (365 days)
 
 -- APPROACH:
--- 1. First CTE: Find the most recent transaction date for each plan
--- 2. Main query: Join with plan details, calculate inactivity period, filter for active plans inactive >365 days
--- 3. Sort results by inactivity days to highlight the most critical accounts first
+-- 1. Pre-filter transactions to reduce data volume
+-- 2. Use appropriate indexing for joins
+-- 3. Calculate inactive threshold date once to improve performance
+-- 4. Sort by most critical accounts first
+
+-- Calculate the inactive threshold date once
+SET @threshold_date = DATE_SUB(CURRENT_DATE(), INTERVAL 365 DAY);
 
 -- First CTE: Get the last transaction date for each plan and customer
 WITH LatestTransactions AS (
     SELECT 
-        s.plan_id,
-        s.owner_id,
-        MAX(s.transaction_date) as last_transaction_date  -- Find the most recent transaction date
+        plan_id,
+        owner_id,
+        MAX(transaction_date) as last_transaction_date
     FROM 
-        savings_savingsaccount s
+        savings_savingsaccount
     WHERE 
-        s.transaction_status = 'success'  -- Only consider successful transactions
+        transaction_status = 'success'
+        AND transaction_date IS NOT NULL
     GROUP BY 
-        s.plan_id, s.owner_id  -- Group by plan and owner to get per-plan metrics
+        plan_id, owner_id
 )
 
 -- Main query: Find active plans with no recent activity
 SELECT 
     lt.plan_id,
     lt.owner_id,
-    -- Determine plan type based on plan attributes
+    CONCAT(u.first_name, ' ', u.last_name) as customer_name,
     CASE 
         WHEN p.is_regular_savings = 1 THEN 'Savings'
         WHEN p.is_a_fund = 1 THEN 'Investment'
         ELSE 'Other'
     END as type,
-    lt.last_transaction_date,  -- Date of last transaction
-    DATEDIFF(CURRENT_DATE(), lt.last_transaction_date) as inactivity_days  -- Calculate days since last transaction
+    lt.last_transaction_date,
+    DATEDIFF(CURRENT_DATE(), lt.last_transaction_date) as inactivity_days
 FROM 
     LatestTransactions lt
 JOIN 
-    plans_plan p ON lt.plan_id = p.id  -- Join to get plan details
+    plans_plan p ON lt.plan_id = p.id AND p.status_id = 1
+LEFT JOIN
+    users_customuser u ON lt.owner_id = u.id
 WHERE 
-    p.status_id = 1  -- Only include active plans (status_id = 1)
-    AND DATEDIFF(CURRENT_DATE(), lt.last_transaction_date) > 365  -- Filter for plans inactive for more than 1 year
+    lt.last_transaction_date < @threshold_date
 ORDER BY 
-    inactivity_days DESC;  -- Sort by most inactive first to identify critical accounts 
+    inactivity_days DESC
+LIMIT 1000; -- Add limit for better performance 

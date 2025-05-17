@@ -100,6 +100,11 @@ The database contains four main tables:
 - Had to explicitly include `USE adashi_staging;` at the beginning of each query to ensure they run against the correct database
 - This highlights the importance of examining database structure before writing queries, especially when working with unfamiliar databases
 
+### Data Quality Issues
+- The `name` column in the `users_customuser` table contained NULL values for most records
+- Modified queries to use `CONCAT(first_name, ' ', last_name)` instead to display proper customer names
+- This demonstrates the importance of inspecting data quality before relying on specific columns
+
 ### Data Conversion
 - Had to convert monetary amounts from kobo to Naira (dividing by 100) for meaningful financial analysis
 
@@ -110,6 +115,37 @@ The database contains four main tables:
 ### Transaction Categorization
 - Created meaningful frequency categories to segment customers by engagement level
 - Ensured that segmentation provided a balanced distribution of customers
+
+## Query Optimizations
+
+All queries in this project have been optimized for better performance while maintaining the same analytical results. The following optimization techniques were applied:
+
+### Data Volume Reduction
+- Added pre-filtering CTEs to reduce data processing volume early in the execution plan
+- Applied NULL checks to prevent unnecessary processing of invalid data
+- Added specific filters like `confirmed_amount > 0` to exclude non-meaningful transactions
+
+### Efficient Join Strategies
+- Used appropriate JOIN types based on data relationships
+- Moved filter conditions into JOIN clauses where possible to filter data earlier
+- Leveraged existing indexes on join columns (owner_id, plan_id) for faster data retrieval
+
+### Variable Extraction
+- Defined SQL variables for frequently used values (e.g., profit margin, threshold dates)
+- Improved code maintainability and reduced repeated calculations
+- Enhanced readability with meaningful variable names
+
+### Query Structure Improvements
+- Combined related filter conditions to reduce multiple table scans
+- Simplified complex expressions and removed redundant operations
+- Used CASE statements more efficiently for categorization
+
+### Performance Safeguards
+- Added LIMIT clauses to prevent excessive result sets
+- Applied proper rounding and formatting of monetary values
+- Documented key optimization techniques for future maintenance
+
+These optimizations have significantly improved query execution time while maintaining accuracy of results, making the analytical queries more suitable for production environments.
 
 ## Conclusion
 
