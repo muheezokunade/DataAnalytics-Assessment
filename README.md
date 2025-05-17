@@ -95,6 +95,11 @@ The database contains four main tables:
 
 ## Challenges Encountered
 
+### Database Configuration Challenges
+- The original SQL file (adashi_assessment.sql) actually creates and uses a database named `adashi_staging` rather than matching its filename
+- Had to explicitly include `USE adashi_staging;` at the beginning of each query to ensure they run against the correct database
+- This highlights the importance of examining database structure before writing queries, especially when working with unfamiliar databases
+
 ### Data Conversion
 - Had to convert monetary amounts from kobo to Naira (dividing by 100) for meaningful financial analysis
 
