@@ -1,13 +1,13 @@
 # DataAnalytics-Assessment
 
-This repository contains SQL solutions for the Data Analytics Assessment. The assessment involves analyzing a financial database to extract valuable business insights.
+This repository contains SQL solutions for a financial database analysis assessment. The assessment involves analyzing a database to extract valuable business insights from customer transaction data, savings and investment plans, and user information.
 
 ## Database Structure
 
 The database contains four main tables:
 - `users_customuser`: Customer demographic and contact information
 - `savings_savingsaccount`: Records of deposit transactions
-- `plans_plan`: Records of plans created by customers
+- `plans_plan`: Records of plans created by customers (savings and investment plans)
 - `withdrawals_withdrawal`: Records of withdrawal transactions
 
 ## Solution Explanations
@@ -17,54 +17,95 @@ The database contains four main tables:
 **Approach:**
 - Created two CTEs (Common Table Expressions) to separately identify customers with savings plans and investment plans
 - For each type of plan, counted the number of plans and summed the deposits
-- Joined these results with customer data to get customers with both types of plans
-- Sorted by total deposits to identify high-value customers
+- Joined these results to identify customers with both types of plans
+- Sorted by total deposits to highlight the highest-value cross-sell opportunities
 
-**Challenges:**
-- Identifying the correct plan types required examining the database schema to determine that `is_regular_savings = 1` and `is_a_fund = 1` are the distinguishing features
-- Converted amounts from kobo to Naira (dividing by 100) for clearer results
+**Key Technical Components:**
+- Used `COUNT(DISTINCT p.id)` to accurately count unique plans per customer
+- Converted amounts from kobo to Naira by dividing by 100
+- Used `JOIN` between the two CTEs to ensure customers have both plan types
+- Applied `LEFT JOIN` to include customer names from the users table
+- Filtered for successful transactions only to ensure accurate financial data
+
+**Business Value:**
+- Identifies high-value customers who have already demonstrated trust in multiple products
+- These customers are prime candidates for additional financial services
+- Allows marketing teams to target cross-selling efforts based on deposit amounts
 
 ### Question 2: Transaction Frequency Analysis
 
 **Approach:**
-- Grouped transactions by customer and month to count monthly transactions
-- Calculated average monthly transactions per customer
-- Categorized customers based on transaction frequency (High: ≥10, Medium: 3-9, Low: ≤2)
-- Aggregated results by category with average transactions per category
+- First grouped transactions by customer and month to calculate transactions per month
+- Calculated average monthly transaction frequency for each customer
+- Categorized customers into frequency segments based on activity levels
+- Aggregated results to show distribution across segments
 
-**Challenges:**
-- Used DATE_FORMAT to properly group transactions by month
-- Created custom sort to display results in a meaningful order (High, Medium, Low)
+**Key Technical Components:**
+- Used `DATE_FORMAT()` to group transactions by month
+- Applied `AVG()` function to calculate average transactions per month
+- Implemented `CASE` statements to categorize customers by activity level
+- Created custom sorting to display results in a logical order (High → Medium → Low)
+
+**Business Value:**
+- Segments customers based on engagement level, enabling targeted strategies
+- Identifies high-frequency users who may be candidates for premium services
+- Highlights low-frequency users who might benefit from re-engagement campaigns
+- Provides a foundation for creating different marketing strategies by segment
 
 ### Question 3: Account Inactivity Alert
 
 **Approach:**
-- Identified the most recent transaction date for each account
-- Calculated inactivity period by comparing to current date
-- Filtered for active accounts (based on status_id) with inactivity over 365 days
-- Included plan type classification (Savings or Investment)
+- Identified the most recent transaction date for each customer's plans
+- Calculated the inactive period by comparing to the current date
+- Filtered for active accounts with no transactions in over a year
+- Categorized accounts by type (Savings vs. Investment)
 
-**Challenges:**
-- Determined that looking for the most recent transaction is the appropriate way to measure account activity
-- Used DATEDIFF to calculate the inactivity period in days
+**Key Technical Components:**
+- Used `MAX(transaction_date)` to find the most recent activity
+- Applied `DATEDIFF()` to calculate days of inactivity
+- Implemented `CASE` statements to categorize plan types
+- Filtered using `status_id = 1` to focus only on active accounts
+- Sorted by inactivity days to prioritize the most critical accounts
+
+**Business Value:**
+- Identifies dormant accounts that may be at risk of being abandoned
+- Enables proactive outreach to re-engage customers before they leave
+- Helps comply with regulatory requirements for monitoring inactive accounts
+- Reduces financial and operational risks associated with dormant accounts
 
 ### Question 4: Customer Lifetime Value (CLV) Estimation
 
 **Approach:**
-- Calculated customer tenure in months since signup
-- Counted total transactions and summed transaction amounts for each customer
-- Applied the CLV formula: (total_transactions / tenure) * 12 * avg_profit_per_transaction
-- Used 0.1% of transaction value as profit per transaction
+- Calculated customer tenure in months from registration date
+- Aggregated transaction data to determine activity level and total transaction amount
+- Estimated profit per transaction based on a percentage of transaction amount
+- Calculated CLV using a formula based on average monthly profit and projected lifespan
 
-**Challenges:**
-- Handling edge cases where tenure might be zero
-- Converting kobo to Naira for monetary values
-- Ensuring the CLV formula reflects both transaction frequency and value
+**Key Technical Components:**
+- Used `TIMESTAMPDIFF()` to calculate months between registration and current date
+- Implemented CLV formula based on transaction profit and tenure
+- Applied `COALESCE()` to handle customers with no transactions
+- Used a projected customer lifespan of 60 months (5 years) for CLV calculation
 
-## Summary
+**Business Value:**
+- Provides a quantitative measure of each customer's long-term value to the business
+- Enables allocation of resources based on customer potential
+- Identifies high-value customers for retention and loyalty programs
+- Allows for better customer acquisition cost analysis and ROI calculations
 
-These SQL queries provide valuable business insights for different departments:
-- Marketing can use CLV data to target high-value customers
-- Customer service can identify inactive accounts for reactivation campaigns
-- Product teams can see which customers are engaging with multiple products
-- Finance teams can analyze transaction patterns to improve revenue forecasting 
+## Challenges Encountered
+
+### Data Conversion
+- Had to convert monetary amounts from kobo to Naira (dividing by 100) for meaningful financial analysis
+
+### CLV Calculation
+- Implemented a simplified CLV model based on historical data, estimated profit margin, and projected customer lifespan
+- Used 2.5% as an estimated profit margin on transactions based on industry standards
+
+### Transaction Categorization
+- Created meaningful frequency categories to segment customers by engagement level
+- Ensured that segmentation provided a balanced distribution of customers
+
+## Conclusion
+
+These SQL solutions demonstrate the ability to extract meaningful business insights from raw financial data. The queries analyze customer behavior, identify cross-selling opportunities, flag inactive accounts, and estimate customer value - all critical components for data-driven decision making in financial services. 
